@@ -1,0 +1,11 @@
+# compiled programs (rebuilt with: make all)
+bin/
+
+# generated datasets (recreated by the scripts; the small UCI .data text files are kept)
+data/*.bin
+data/*.labels
+
+# Python / editor leftovers
+__pycache__/
+*.pyc
+.claude/
