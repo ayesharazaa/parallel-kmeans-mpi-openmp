@@ -193,7 +193,44 @@ not statistically convincing; the main visible benefit is fewer bad local minima
 work before the loop (k passes over the data), which is not included in the timings; it was implemented in the serial
 program only, since its cost and effect do not depend on the parallel version.
 
-## 9. Limitations and honest notes
+## 9. Repeat on Linux with Open MPI
+
+The proposal names Linux with MPICH or Open MPI, so the whole project was rebuilt and rerun unchanged (only the
+launcher flags below were added) on **Ubuntu 26.04 under WSL2 (Windows Subsystem for Linux) with GCC 15.2 and Open MPI**.
+The WSL2 virtual machine sees the same 4 hardware threads but only 3 GB of RAM. Results are in `linux/results/` and
+`linux/plots/`. For Open MPI the launcher needs `--oversubscribe` (more processes than CPU slots, for the 8-process test)
+and `--bind-to none` (otherwise Open MPI pins a process to one core and its OpenMP threads cannot spread out).
+`scripts/runlib.py` adds both automatically when Open MPI is detected.
+
+* **Correctness:** all 36 comparisons with the serial version pass again, with the same iteration counts, cluster sizes
+  and purity values as on Windows (Iris 0.893, Wine 0.966, Letter 0.280). The K-Means++ experiment gave exactly the same
+  numbers on both systems (the random generator is our own, so the choice of starting centroids is identical).
+
+| 4 workers unless stated, base problem | Windows (MS-MPI) | Linux/WSL2 (Open MPI) |
+|---|---|---|
+| serial time (s) | 1.39 | 1.60 |
+| OpenMP 1 / 2 / 4 / 8 threads, speedup | 1.00 / 1.60 / 2.22 / 2.28 | 0.99 / 1.65 / 2.22 / 2.21 |
+| MPI 1 / 2 / 4 / 8 processes, speedup | 1.04 / 1.69 / 2.32 / 1.41 | 1.02 / 1.73 / 1.95 / 2.05 |
+| MPI 4 processes: waiting + Allreduce (s) | 0.039 + 0.0013 | 0.097 + 0.022 |
+| MPI 8 processes: waiting + Allreduce (s) | 0.353 + 0.409 | 0.182 + 0.089 |
+| hybrid 1x4 / 2x2 / 4x1, speedup | 2.29 / 2.29 / 2.12 | 2.16 / 2.20 / 2.10 |
+
+* **OpenMP behaves the same on both systems** (2.22x at 4 threads, no gain at 8), which supports the conclusion that the
+  limit comes from the 2-core hardware and not from the operating system.
+* **MPI differs between the two MPI libraries.** With Open MPI, 4 processes are slower than on Windows (1.95x vs 2.32x:
+  more waiting and a larger Allreduce time) but 8 processes still gain slightly (2.05x), while MS-MPI got much worse at 8
+  (1.41x). So the oversubscription collapse seen on Windows is not a property of the algorithm but of how that MPI library
+  waits when processes outnumber hardware threads. A likely reason is that Open MPI makes waiting processes give up the CPU
+  when it detects oversubscription, but we did not test this. The slower 4-process result on Linux may come from Open
+  MPI's shared-memory communication or the virtual machine; also untested.
+* **Absolute times are about 15% slower on Linux** (serial 1.60 s vs 1.39 s), which is plausible for WSL2 (virtual
+  machine overhead, different compiler version), so compare speedups between the two systems, not seconds.
+* **Schedules:** in the main Linux run static looked slower than dynamic (0.80 s vs 0.68 s), but six alternating repeats
+  gave 0.69 to 0.78 s for static, dynamic with chunk 1024 and guided alike, so this was noise, and the Windows conclusion
+  (all three are equal for uniform work) stands. The same noise explains the odd d = 2 OpenMP result (1.75x while MPI
+  and hybrid gave 2.3x on identical work).
+
+## 10. Limitations and honest notes
 
 1. **Noise.** On this laptop repeated runs of the same configuration vary by up to roughly 10 to 15%
    (heat, background programs). Early in the project the first benchmark gave a hybrid 1x1 speedup of 0.88 (slower than
@@ -204,6 +241,7 @@ program only, since its cost and effect do not depend on the parallel version.
    should be treated as ties.
 2. **One machine, 2 physical cores.** Scalability beyond 4 workers, real network communication and multi-node
    behaviour could not be measured. 8-worker results show oversubscription behaviour, not scalability.
-3. **Windows and Microsoft MPI** were used instead of Linux with MPICH or OpenMPI. The C code is standard MPI/OpenMP
-   and builds unchanged with `mpicc` on Linux, but absolute timings and MPI waiting behaviour may differ.
+3. **Two environments, both on the same laptop:** native Windows with Microsoft MPI (main results) and Ubuntu under
+   WSL2 with Open MPI (section 9). Neither is a bare-metal Linux install, and absolute timings and MPI waiting behaviour
+   differ between them.
 4. Explanations marked "possible", "likely" or "hypothesis" were not tested individually.

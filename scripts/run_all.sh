@@ -9,8 +9,10 @@ source env.sh
 MAKE=make   # on Windows the MinGW build of make works; MSYS2's own make does not here
 command -v mingw32-make >/dev/null 2>&1 && MAKE=mingw32-make
 
+PY="${PYTHON:-$(command -v python || command -v python3)}"   # python on Windows, python3 on Ubuntu
+
 $MAKE all                          # build bin/*
-python scripts/validate.py         # correctness check against the serial version
-python scripts/run_benchmarks.py   # all experiments -> results/*.csv   (takes a while)
-python scripts/make_plots.py       # plots/*.png and results/tables.md
+$PY scripts/validate.py            # correctness check against the serial version
+$PY scripts/run_benchmarks.py      # all experiments -> results/*.csv   (takes a while)
+$PY scripts/make_plots.py          # plots/*.png and results/tables.md
 echo "Done. See results/tables.md and plots/."

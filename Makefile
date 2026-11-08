@@ -12,7 +12,8 @@ CC       = gcc
 CFLAGS   = -O2 -std=gnu11 -Wall -Wextra
 OMPFLAGS = -fopenmp
 LDLIBS   = -lm
-PYTHON  ?= python
+# Python: "python" on Windows, "python3" on Ubuntu (use the first one that exists).
+PYTHON  ?= $(shell command -v python >/dev/null 2>&1 && echo python || echo python3)
 
 # MPI: use the mpicc wrapper if there is one (Linux); otherwise fall back to
 # plain gcc linked with Microsoft MPI (Windows).

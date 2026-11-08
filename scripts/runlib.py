@@ -60,7 +60,12 @@ def run_program(version, datafile, k, procs=1, threads=1, extra=None):
     if version in ("omp", "hybrid"):
         cmd += ["-T", str(threads)]
     if version in ("mpi", "hybrid"):
-        cmd = [_mpiexec(), "-n", str(procs)] + cmd
+        launcher = [_mpiexec()]
+        if shutil.which("ompi_info"):
+            # Open MPI: allow more processes than CPU slots (the 8-process test), and do
+            # not pin each process to one core (that would trap its OpenMP threads).
+            launcher += ["--oversubscribe", "--bind-to", "none"]
+        cmd = launcher + ["-n", str(procs)] + cmd
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
         raise RuntimeError("command failed: %s\n%s%s" % (" ".join(cmd), proc.stdout, proc.stderr))

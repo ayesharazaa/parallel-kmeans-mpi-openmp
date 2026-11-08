@@ -1,0 +1,84 @@
+OpenMP threads
+  omp_threads  serial  P=1 T=1          n=1000000 d=8 k=8  time=1.597s (min 1.555 max 2.695)
+  omp_threads  omp     P=1 T=1 static   n=1000000 d=8 k=8  time=1.609s (min 1.554 max 1.648)
+  omp_threads  omp     P=1 T=2 static   n=1000000 d=8 k=8  time=0.971s (min 0.938 max 1.012)
+  omp_threads  omp     P=1 T=4 static   n=1000000 d=8 k=8  time=0.718s (min 0.673 max 0.722)
+  omp_threads  omp     P=1 T=8 static   n=1000000 d=8 k=8  time=0.722s (min 0.709 max 0.808)
+wrote /home/ayesha_raza/parallel-kmeans/results/omp_threads.csv
+OpenMP schedules (4 threads)
+  omp_sched    serial  P=1 T=1          n=1000000 d=8 k=8  time=1.564s (min 1.498 max 1.663)
+  omp_sched    omp     P=1 T=4 static   n=1000000 d=8 k=8  time=0.799s (min 0.747 max 0.862)
+  omp_sched    omp     P=1 T=4 dynamic  n=1000000 d=8 k=8  time=0.941s (min 0.915 max 0.993)
+  omp_sched    omp     P=1 T=4 dynamic  n=1000000 d=8 k=8  time=0.676s (min 0.653 max 0.778)
+  omp_sched    omp     P=1 T=4 guided   n=1000000 d=8 k=8  time=0.687s (min 0.665 max 0.856)
+wrote /home/ayesha_raza/parallel-kmeans/results/omp_sched.csv
+MPI processes
+  mpi_procs    serial  P=1 T=1          n=1000000 d=8 k=8  time=1.660s (min 1.517 max 1.777)
+  mpi_procs    mpi     P=1 T=1          n=1000000 d=8 k=8  time=1.625s (min 1.590 max 2.044)
+  mpi_procs    mpi     P=2 T=1          n=1000000 d=8 k=8  time=0.958s (min 0.904 max 1.190)
+  mpi_procs    mpi     P=4 T=1          n=1000000 d=8 k=8  time=0.850s (min 0.732 max 0.910)
+  mpi_procs    mpi     P=8 T=1          n=1000000 d=8 k=8  time=0.810s (min 0.752 max 1.760)
+wrote /home/ayesha_raza/parallel-kmeans/results/mpi_procs.csv
+Hybrid
+  hybrid       serial  P=1 T=1          n=1000000 d=8 k=8  time=1.605s (min 1.571 max 2.531)
+  hybrid       hybrid  P=1 T=1 static   n=1000000 d=8 k=8  time=1.633s (min 1.541 max 2.371)
+  hybrid       hybrid  P=1 T=2 static   n=1000000 d=8 k=8  time=1.014s (min 0.892 max 1.312)
+  hybrid       hybrid  P=1 T=4 static   n=1000000 d=8 k=8  time=0.742s (min 0.670 max 1.061)
+  hybrid       hybrid  P=2 T=1 static   n=1000000 d=8 k=8  time=0.954s (min 0.891 max 1.615)
+  hybrid       hybrid  P=2 T=2 static   n=1000000 d=8 k=8  time=0.728s (min 0.687 max 1.316)
+  hybrid       hybrid  P=4 T=1 static   n=1000000 d=8 k=8  time=0.763s (min 0.709 max 1.676)
+wrote /home/ayesha_raza/parallel-kmeans/results/hybrid.csv
+Effect of n
+  size         serial  P=1 T=1          n=100000 d=8 k=8  time=0.169s (min 0.158 max 0.176)
+  size         omp     P=1 T=4 static   n=100000 d=8 k=8  time=0.085s (min 0.075 max 0.093)
+  size         mpi     P=4 T=1          n=100000 d=8 k=8  time=0.081s (min 0.075 max 0.188)
+  size         hybrid  P=2 T=2 static   n=100000 d=8 k=8  time=0.084s (min 0.074 max 0.094)
+  size         serial  P=1 T=1          n=500000 d=8 k=8  time=0.783s (min 0.770 max 0.825)
+  size         omp     P=1 T=4 static   n=500000 d=8 k=8  time=0.354s (min 0.349 max 0.415)
+  size         mpi     P=4 T=1          n=500000 d=8 k=8  time=0.366s (min 0.356 max 0.418)
+  size         hybrid  P=2 T=2 static   n=500000 d=8 k=8  time=0.373s (min 0.346 max 0.388)
+  size         serial  P=1 T=1          n=1000000 d=8 k=8  time=1.560s (min 1.504 max 1.688)
+  size         omp     P=1 T=4 static   n=1000000 d=8 k=8  time=0.712s (min 0.687 max 0.721)
+  size         mpi     P=4 T=1          n=1000000 d=8 k=8  time=0.801s (min 0.717 max 0.853)
+  size         hybrid  P=2 T=2 static   n=1000000 d=8 k=8  time=0.743s (min 0.732 max 0.809)
+  size         serial  P=1 T=1          n=2000000 d=8 k=8  time=3.101s (min 3.044 max 3.295)
+  size         omp     P=1 T=4 static   n=2000000 d=8 k=8  time=1.386s (min 1.339 max 1.430)
+  size         mpi     P=4 T=1          n=2000000 d=8 k=8  time=1.621s (min 1.475 max 1.781)
+  size         hybrid  P=2 T=2 static   n=2000000 d=8 k=8  time=1.488s (min 1.460 max 1.516)
+wrote /home/ayesha_raza/parallel-kmeans/results/size.csv
+Effect of k
+  kvals        serial  P=1 T=1          n=1000000 d=8 k=4  time=0.961s (min 0.940 max 1.047)
+  kvals        omp     P=1 T=4 static   n=1000000 d=8 k=4  time=0.436s (min 0.428 max 0.503)
+  kvals        mpi     P=4 T=1          n=1000000 d=8 k=4  time=0.438s (min 0.421 max 0.486)
+  kvals        hybrid  P=2 T=2 static   n=1000000 d=8 k=4  time=0.422s (min 0.394 max 0.513)
+  kvals        serial  P=1 T=1          n=1000000 d=8 k=8  time=1.609s (min 1.570 max 1.666)
+  kvals        omp     P=1 T=4 static   n=1000000 d=8 k=8  time=0.799s (min 0.754 max 0.822)
+  kvals        mpi     P=4 T=1          n=1000000 d=8 k=8  time=0.786s (min 0.759 max 0.843)
+  kvals        hybrid  P=2 T=2 static   n=1000000 d=8 k=8  time=0.736s (min 0.705 max 1.172)
+  kvals        serial  P=1 T=1          n=1000000 d=8 k=16  time=2.701s (min 2.674 max 2.926)
+  kvals        omp     P=1 T=4 static   n=1000000 d=8 k=16  time=1.280s (min 1.206 max 1.410)
+  kvals        mpi     P=4 T=1          n=1000000 d=8 k=16  time=1.360s (min 1.328 max 1.491)
+  kvals        hybrid  P=2 T=2 static   n=1000000 d=8 k=16  time=1.395s (min 1.304 max 1.416)
+  kvals        serial  P=1 T=1          n=1000000 d=8 k=32  time=4.849s (min 4.577 max 4.970)
+  kvals        omp     P=1 T=4 static   n=1000000 d=8 k=32  time=2.359s (min 2.304 max 2.485)
+  kvals        mpi     P=4 T=1          n=1000000 d=8 k=32  time=2.478s (min 2.394 max 3.883)
+  kvals        hybrid  P=2 T=2 static   n=1000000 d=8 k=32  time=2.494s (min 2.337 max 4.374)
+wrote /home/ayesha_raza/parallel-kmeans/results/kvals.csv
+Effect of d
+  dvals        serial  P=1 T=1          n=1000000 d=2 k=8  time=0.945s (min 0.900 max 1.090)
+  dvals        omp     P=1 T=4 static   n=1000000 d=2 k=8  time=0.538s (min 0.421 max 0.756)
+  dvals        mpi     P=4 T=1          n=1000000 d=2 k=8  time=0.418s (min 0.345 max 0.784)
+  dvals        hybrid  P=2 T=2 static   n=1000000 d=2 k=8  time=0.409s (min 0.366 max 0.842)
+  dvals        serial  P=1 T=1          n=1000000 d=8 k=8  time=1.708s (min 1.616 max 1.852)
+  dvals        omp     P=1 T=4 static   n=1000000 d=8 k=8  time=0.763s (min 0.724 max 0.796)
+  dvals        mpi     P=4 T=1          n=1000000 d=8 k=8  time=0.789s (min 0.777 max 1.154)
+  dvals        hybrid  P=2 T=2 static   n=1000000 d=8 k=8  time=0.778s (min 0.730 max 0.910)
+  dvals        serial  P=1 T=1          n=1000000 d=32 k=8  time=6.358s (min 6.236 max 6.584)
+  dvals        omp     P=1 T=4 static   n=1000000 d=32 k=8  time=2.300s (min 2.247 max 2.339)
+  dvals        mpi     P=4 T=1          n=1000000 d=32 k=8  time=2.557s (min 2.520 max 2.864)
+  dvals        hybrid  P=2 T=2 static   n=1000000 d=32 k=8  time=2.551s (min 2.425 max 2.769)
+wrote /home/ayesha_raza/parallel-kmeans/results/dvals.csv
+Initialisation: random vs K-Means++
+wrote init_compare.csv
+
+All benchmarks done in 9.5 minutes.

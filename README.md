@@ -115,6 +115,19 @@ counts that do not divide n) and compares with the serial result: same iteration
 SSE and centroids equal up to floating-point rounding (relative difference about 1e-15; sums are added in a
 different order in the parallel versions).
 
+## Running on Linux (Ubuntu / WSL2) with Open MPI
+
+Same code and commands, no `env.sh` needed. In Ubuntu (for Windows users: `wsl --install -d Ubuntu`):
+
+```bash
+sudo apt install -y build-essential openmpi-bin libopenmpi-dev make python3-numpy python3-matplotlib
+make all && make test && make bench && make plots
+```
+
+`scripts/runlib.py` adds `--oversubscribe --bind-to none` to `mpiexec` automatically when Open MPI is detected.
+The Linux results of this project are kept separately in `linux/results/` and `linux/plots/`
+(the Windows results are in `results/` and `plots/`).
+
 ## Machine used
 
 Intel Core i7-6600U, 2 physical cores / 4 hardware threads (hyper-threading), 7.9 GB RAM, Windows 10,
