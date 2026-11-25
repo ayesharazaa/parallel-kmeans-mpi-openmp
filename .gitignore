@@ -9,3 +9,7 @@ data/*.labels
 __pycache__/
 *.pyc
 .claude/
+
+# large downloads and submission bundles (too big for git)
+data/raw/
+submission/

@@ -68,3 +68,18 @@
 |---|---|---|---|---|
 | random | 109.6 | 1.537e+08 | 1.105e+08 | 2.148e+08 |
 | K-Means++ | 117.1 | 1.437e+08 | 1.105e+08 | 1.983e+08 |
+
+### Real data sets (20 iterations)
+
+| data set | size | version | time (s) | speedup |
+|---|---|---|---|---|
+| covertype | 581012 x 10, k=7 | serial | 0.703 | 1.00 |
+| covertype | 581012 x 10, k=7 | OpenMP 2 threads | 0.466 | 1.51 |
+| covertype | 581012 x 10, k=7 | OpenMP 4 threads | 0.378 | 1.86 |
+| covertype | 581012 x 10, k=7 | MPI 4 processes | 0.389 | 1.80 |
+| covertype | 581012 x 10, k=7 | hybrid 2x2 | 0.388 | 1.81 |
+| census1990 | 1000000 x 68, k=8 | serial | 11.621 | 1.00 |
+| census1990 | 1000000 x 68, k=8 | OpenMP 2 threads | 6.903 | 1.68 |
+| census1990 | 1000000 x 68, k=8 | OpenMP 4 threads | 4.194 | 2.77 |
+| census1990 | 1000000 x 68, k=8 | MPI 4 processes | 4.599 | 2.53 |
+| census1990 | 1000000 x 68, k=8 | hybrid 2x2 | 4.535 | 2.56 |

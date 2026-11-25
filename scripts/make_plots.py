@@ -17,11 +17,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RES = os.path.join(ROOT, "results")
-OUT = os.path.join(ROOT, "plots")
+# Environment options:  BW=1 (black and white),  RESULTS_DIR / PLOTS_DIR (relative to the project)
+BW = os.environ.get("BW") == "1"
+RES = os.path.join(ROOT, os.environ.get("RESULTS_DIR", "results"))
+OUT = os.path.join(ROOT, os.environ.get("PLOTS_DIR", "plots_bw" if BW else "plots"))
 os.makedirs(OUT, exist_ok=True)
 
-BLUE, ORANGE, GREEN, PINK, GREY = "#0072B2", "#E69F00", "#009E73", "#CC79A7", "#555555"
+if BW:   # black and white: shades of grey, series also differ by marker and line style
+    BLUE, ORANGE, GREEN, PINK, GREY = "#000000", "#4d4d4d", "#8c8c8c", "#333333", "#999999"
+    C_COMP, C_WAIT, C_COMM = "#bdbdbd", "#7a7a7a", "#1a1a1a"
+else:
+    BLUE, ORANGE, GREEN, PINK, GREY = "#0072B2", "#E69F00", "#009E73", "#CC79A7", "#555555"
+    C_COMP, C_WAIT, C_COMM = ORANGE, "#b5b5b5", "#333333"
+LS = {"serial": ":", "omp": "-", "mpi": "--", "hybrid": "-."}
 STYLE = {  # version -> (colour, marker, label)
     "serial": (GREY, "s", "serial"),
     "omp": (BLUE, "o", "OpenMP"),
@@ -143,10 +151,10 @@ P = [r["procs"] for r in mp]
 fig, ax = plt.subplots(1, 3, figsize=(10, 3.2))
 comp = np.array([r["time"] - r["t_comm"] - r["t_wait"] for r in mp])
 wait = np.array([r["t_wait"] for r in mp])
-ax[0].bar(range(len(P)), comp, color=ORANGE, width=0.55, label="computation")
-ax[0].bar(range(len(P)), wait, bottom=comp, color="#b5b5b5", width=0.55,
+ax[0].bar(range(len(P)), comp, color=C_COMP, width=0.55, label="computation")
+ax[0].bar(range(len(P)), wait, bottom=comp, color=C_WAIT, width=0.55,
           label="waiting for slowest process")
-ax[0].bar(range(len(P)), [r["t_comm"] for r in mp], bottom=comp + wait, color="#333333", width=0.55,
+ax[0].bar(range(len(P)), [r["t_comm"] for r in mp], bottom=comp + wait, color=C_COMM, width=0.55,
           label="communication (Allreduce)")
 ax[0].axhline(serial_time(rows, mp[0]), ls="--", color=GREY, label="serial")
 ax[0].set_xticks(range(len(P))); ax[0].set_xticklabels(P)
@@ -204,9 +212,9 @@ for exp, key, xlabel, fname, title in (
     for v in ("serial", "omp", "mpi", "hybrid"):
         col, mk, lab = STYLE[v]
         sel = sorted([r for r in rows if r["version"] == v], key=lambda r: r[key])
-        ax[0].plot([r[key] for r in sel], [r["time"] for r in sel], mk + "-", color=col, label=lab)
+        ax[0].plot([r[key] for r in sel], [r["time"] for r in sel], marker=mk, ls=LS[v], color=col, label=lab)
         if v != "serial":
-            ax[1].plot([r[key] for r in sel], [speedup(rows, r) for r in sel], mk + "-", color=col, label=lab)
+            ax[1].plot([r[key] for r in sel], [speedup(rows, r) for r in sel], marker=mk, ls=LS[v], color=col, label=lab)
     for x in xs:
         line = [x]
         for v in ("serial", "omp", "mpi", "hybrid"):
@@ -265,6 +273,48 @@ for a, t, yl in zip(ax, ("Iterations until converged", "Final SSE (lower is bett
 save(fig, "fig9_initialisation.png")
 add_table("Random vs K-Means++ start (10 seeds; black bar in the figure = mean)",
           ["start", "mean iterations", "mean SSE", "best SSE", "worst SSE"], body)
+
+
+# ---- 10. Real data sets ---------------------------------------------------------------------
+if os.path.exists(os.path.join(RES, "real.csv")):
+    rows = load("real")
+    names = []
+    for r in rows:
+        if r["dataset"] not in names:
+            names.append(r["dataset"])
+    cfgs = [("OpenMP 2 threads", lambda r: r["version"] == "omp" and r["threads"] == 2, BLUE, ""),
+            ("OpenMP 4 threads", lambda r: r["version"] == "omp" and r["threads"] == 4, ORANGE, "//"),
+            ("MPI 4 processes", lambda r: r["version"] == "mpi" and r["procs"] == 4, GREEN, ".."),
+            ("hybrid 2x2", lambda r: r["version"] == "hybrid", PINK, "xx")]
+    fig, ax = plt.subplots(figsize=(8, 3.6))
+    wbar = 0.2
+    body = []
+    for j, (lab, f, col, hatch) in enumerate(cfgs):
+        vals = []
+        for nm in names:
+            sub = [r for r in rows if r["dataset"] == nm]
+            r = [q for q in sub if f(q)][0]
+            sbase = [q for q in sub if q["version"] == "serial"][0]["time"]
+            vals.append(sbase / r["time"])
+        ax.bar(np.arange(len(names)) + (j - 1.5) * wbar, vals, wbar, label=lab, color=col, hatch=hatch,
+               edgecolor="black", linewidth=0.6)
+        for xi, v in enumerate(vals):
+            ax.text(xi + (j - 1.5) * wbar, v, "%.2f" % v, ha="center", va="bottom", fontsize=7)
+    ax.axhline(1.0, ls=":", color="#999999")
+    ax.set_xticks(range(len(names)))
+    ax.set_xticklabels(names)
+    ax.set(ylabel="speedup over serial", title="Speedup on the real data sets (20 iterations)")
+    ax.legend(ncol=2, fontsize=7); ax.grid(axis="x", visible=False)
+    save(fig, "fig10_real_datasets.png")
+    for nm in names:
+        sub = [r for r in rows if r["dataset"] == nm]
+        sbase = [q for q in sub if q["version"] == "serial"][0]["time"]
+        n0 = sub[0]
+        for r in sub:
+            lab = {"serial": "serial", "omp": "OpenMP %d threads" % r["threads"], "mpi": "MPI %d processes" % r["procs"],
+                   "hybrid": "hybrid %dx%d" % (r["procs"], r["threads"])}[r["version"]]
+            body.append((nm, "%d x %d, k=%d" % (n0["n"], n0["d"], n0["k"]), lab, "%.3f" % r["time"], "%.2f" % (sbase / r["time"])))
+    add_table("Real data sets (20 iterations)", ["data set", "size", "version", "time (s)", "speedup"], body)
 
 with open(os.path.join(RES, "tables.md"), "w") as f:
     f.write("\n".join(tables))

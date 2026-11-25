@@ -1,0 +1,74 @@
+[
+ {
+  "name": "iris",
+  "n": 150,
+  "d": 4,
+  "k": 3,
+  "iters": 5,
+  "sse": 78.94084143,
+  "purity": 0.8933333333333333,
+  "cases": 9,
+  "passed": 9,
+  "max_cent_diff": 3.2e-16
+ },
+ {
+  "name": "wine",
+  "n": 178,
+  "d": 13,
+  "k": 3,
+  "iters": 6,
+  "sse": 1277.928489,
+  "purity": 0.9662921348314607,
+  "cases": 9,
+  "passed": 9,
+  "max_cent_diff": 3.8e-16
+ },
+ {
+  "name": "letter",
+  "n": 20000,
+  "d": 16,
+  "k": 26,
+  "iters": 100,
+  "sse": 627025.1542,
+  "purity": 0.27955,
+  "cases": 9,
+  "passed": 9,
+  "max_cent_diff": 0.0
+ },
+ {
+  "name": "synthetic 50k fixed 20 iters",
+  "n": 50000,
+  "d": 8,
+  "k": 8,
+  "iters": 20,
+  "sse": 66506191.55,
+  "purity": null,
+  "cases": 9,
+  "passed": 9,
+  "max_cent_diff": 6.6e-15
+ },
+ {
+  "name": "covertype",
+  "n": 581012,
+  "d": 10,
+  "k": 7,
+  "iters": 10,
+  "sse": 2936417.443,
+  "purity": 0.4996815900532175,
+  "cases": 9,
+  "passed": 9,
+  "max_cent_diff": 3.1e-13
+ },
+ {
+  "name": "census1990",
+  "n": 1000000,
+  "d": 68,
+  "k": 8,
+  "iters": 10,
+  "sse": 39445287.47,
+  "purity": null,
+  "cases": 9,
+  "passed": 9,
+  "max_cent_diff": 6e-12
+ }
+]

@@ -22,17 +22,17 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from runlib import RESULTS, make_data, run_program
+from runlib import DATA, RESULTS, make_data, run_program
 
 FIXED = ["-m", "20", "-t", "-1"]  # exactly 20 iterations, never stop early
 FIELDS = ["experiment", "version", "procs", "threads", "workers", "sched", "chunk",
-          "n", "d", "k", "iters", "sse", "time", "tmin", "tmax", "t_comm", "t_wait"]
+          "n", "d", "k", "iters", "sse", "time", "tmin", "tmax", "t_comm", "t_wait", "dataset"]
 
 
-def cfg(version, path, k, procs=1, threads=1, sched="", chunk=0):
+def cfg(version, path, k, procs=1, threads=1, sched="", chunk=0, label=""):
     """Describe one configuration to run."""
     return dict(version=version, path=path, k=k, procs=procs, threads=threads,
-                sched=sched, chunk=chunk)
+                sched=sched, chunk=chunk, label=label)
 
 
 def bench(rows, exp, configs, repeats):
@@ -61,6 +61,7 @@ def bench(rows, exp, configs, repeats):
             "time": statistics.median(times), "tmin": min(times), "tmax": max(times),
             "t_comm": statistics.median([r["t_comm"] for r in res]),
             "t_wait": statistics.median([r["t_wait"] for r in res]),
+            "dataset": c["label"],
         }
         rows.append(row)
         print("  %-12s %-7s P=%d T=%d %-8s n=%d d=%d k=%d  time=%.3fs (min %.3f max %.3f)" % (
@@ -80,6 +81,7 @@ def save(rows, name):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true", help="small smoke test")
+    ap.add_argument("--only", choices=["real"], help="run only the real data set experiment")
     args = ap.parse_args()
     scale = 0.05 if args.quick else 1.0
     repeats = 1 if args.quick else 5
@@ -87,85 +89,105 @@ def main():
     os.makedirs(RESULTS, exist_ok=True)
     t_start = time.time()
 
-    # ---- datasets (created once, reused on later runs) -------------------
-    tag = "_quick" if args.quick else ""
-    base = make_data(N(1000000), 8, 8, 1, "syn_n%d_d8%s" % (N(1000000), tag))
-    sizes = {n: make_data(N(n), 8, 8, 1, "syn_n%d_d8%s" % (N(n), tag))
-             for n in (100000, 500000, 1000000, 2000000)}
-    dims = {d: make_data(N(1000000), d, 8, 1, "syn_n%d_d%d%s" % (N(1000000), d, tag))
-            for d in (2, 8, 32)}
-    K = 8
+    if args.only != "real":
+        # ---- datasets (created once, reused on later runs) -------------------
+        tag = "_quick" if args.quick else ""
+        base = make_data(N(1000000), 8, 8, 1, "syn_n%d_d8%s" % (N(1000000), tag))
+        sizes = {n: make_data(N(n), 8, 8, 1, "syn_n%d_d8%s" % (N(n), tag))
+                 for n in (100000, 500000, 1000000, 2000000)}
+        dims = {d: make_data(N(1000000), d, 8, 1, "syn_n%d_d%d%s" % (N(1000000), d, tag))
+                for d in (2, 8, 32)}
+        K = 8
 
-    # ---- OpenMP: threads ---------------------------------------------------
-    print("OpenMP threads")
+        # ---- OpenMP: threads ---------------------------------------------------
+        print("OpenMP threads")
+        rows = []
+        bench(rows, "omp_threads", [cfg("serial", base, K)] +
+              [cfg("omp", base, K, threads=t, sched="static") for t in (1, 2, 4, 8)], repeats)
+        save(rows, "omp_threads.csv")
+
+        # ---- OpenMP: scheduling policies ---------------------------------------
+        print("OpenMP schedules (4 threads)")
+        rows = []
+        bench(rows, "omp_sched", [cfg("serial", base, K)] +
+              [cfg("omp", base, K, threads=4, sched=s_, chunk=c_)
+               for s_, c_ in (("static", 0), ("dynamic", 1), ("dynamic", 1024), ("guided", 0))], repeats)
+        save(rows, "omp_sched.csv")
+
+        # ---- MPI: processes ------------------------------------------------------
+        print("MPI processes")
+        rows = []
+        bench(rows, "mpi_procs", [cfg("serial", base, K)] +
+              [cfg("mpi", base, K, procs=p) for p in (1, 2, 4, 8)], repeats)
+        save(rows, "mpi_procs.csv")
+
+        # ---- Hybrid: processes x threads ------------------------------------------
+        print("Hybrid")
+        rows = []
+        bench(rows, "hybrid", [cfg("serial", base, K)] +
+              [cfg("hybrid", base, K, procs=p, threads=t, sched="static")
+               for p, t in ((1, 1), (1, 2), (1, 4), (2, 1), (2, 2), (4, 1))], repeats)
+        save(rows, "hybrid.csv")
+
+        # ---- problem-size sweeps: serial vs the four-worker parallel versions ---------
+        def four(path, k):
+            return [cfg("serial", path, k),
+                    cfg("omp", path, k, threads=4, sched="static"),
+                    cfg("mpi", path, k, procs=4),
+                    cfg("hybrid", path, k, procs=2, threads=2, sched="static")]
+
+        print("Effect of n")
+        rows = []
+        for n, path in sizes.items():
+            bench(rows, "size", four(path, K), repeats)
+        save(rows, "size.csv")
+
+        print("Effect of k")
+        rows = []
+        for k in (4, 8, 16, 32):
+            bench(rows, "kvals", four(base, k), repeats)
+        save(rows, "kvals.csv")
+
+        print("Effect of d")
+        rows = []
+        for d, path in dims.items():
+            bench(rows, "dvals", four(path, K), repeats)
+        save(rows, "dvals.csv")
+
+    # ---- real UCI data sets (only those that were downloaded and converted) -------------
+    print("Real data sets")
     rows = []
-    bench(rows, "omp_threads", [cfg("serial", base, K)] +
-          [cfg("omp", base, K, threads=t, sched="static") for t in (1, 2, 4, 8)], repeats)
-    save(rows, "omp_threads.csv")
+    real_sets = [("covertype", 7), ("yearpredictionmsd", 8), ("census1990", 8)]  # (name, k)
+    for name, k in real_sets:
+        path = os.path.join(DATA, name + ".bin")
+        if not os.path.exists(path):
+            print("  skipping %s (run scripts/prep_real.py first)" % name)
+            continue
+        reps = 1 if args.quick else 3  # these runs are long, so 3 repeats
+        bench(rows, "real", [cfg("serial", path, k, label=name),
+                             cfg("omp", path, k, threads=2, sched="static", label=name),
+                             cfg("omp", path, k, threads=4, sched="static", label=name),
+                             cfg("mpi", path, k, procs=4, label=name),
+                             cfg("hybrid", path, k, procs=2, threads=2, sched="static", label=name)], reps)
+    if rows:
+        save(rows, "real.csv")
 
-    # ---- OpenMP: scheduling policies ---------------------------------------
-    print("OpenMP schedules (4 threads)")
-    rows = []
-    bench(rows, "omp_sched", [cfg("serial", base, K)] +
-          [cfg("omp", base, K, threads=4, sched=s_, chunk=c_)
-           for s_, c_ in (("static", 0), ("dynamic", 1), ("dynamic", 1024), ("guided", 0))], repeats)
-    save(rows, "omp_sched.csv")
-
-    # ---- MPI: processes ------------------------------------------------------
-    print("MPI processes")
-    rows = []
-    bench(rows, "mpi_procs", [cfg("serial", base, K)] +
-          [cfg("mpi", base, K, procs=p) for p in (1, 2, 4, 8)], repeats)
-    save(rows, "mpi_procs.csv")
-
-    # ---- Hybrid: processes x threads ------------------------------------------
-    print("Hybrid")
-    rows = []
-    bench(rows, "hybrid", [cfg("serial", base, K)] +
-          [cfg("hybrid", base, K, procs=p, threads=t, sched="static")
-           for p, t in ((1, 1), (1, 2), (1, 4), (2, 1), (2, 2), (4, 1))], repeats)
-    save(rows, "hybrid.csv")
-
-    # ---- problem-size sweeps: serial vs the four-worker parallel versions ---------
-    def four(path, k):
-        return [cfg("serial", path, k),
-                cfg("omp", path, k, threads=4, sched="static"),
-                cfg("mpi", path, k, procs=4),
-                cfg("hybrid", path, k, procs=2, threads=2, sched="static")]
-
-    print("Effect of n")
-    rows = []
-    for n, path in sizes.items():
-        bench(rows, "size", four(path, K), repeats)
-    save(rows, "size.csv")
-
-    print("Effect of k")
-    rows = []
-    for k in (4, 8, 16, 32):
-        bench(rows, "kvals", four(base, k), repeats)
-    save(rows, "kvals.csv")
-
-    print("Effect of d")
-    rows = []
-    for d, path in dims.items():
-        bench(rows, "dvals", four(path, K), repeats)
-    save(rows, "dvals.csv")
-
-    # ---- random vs K-Means++ starting centroids (serial) ----------------------------
-    print("Initialisation: random vs K-Means++")
-    path = make_data(N(200000), 8, 16, 3, "syn_init%s" % tag, std=8.0)
-    rows = []
-    for seed in range(1, 11):
-        for init in ("random", "plus"):
-            r = run_program("serial", path, 16, extra=["-m", "300", "-t", "1e-4",
-                                                       "-s", str(seed), "-i", init])
-            rows.append({"init": init, "seed": seed, "iters": r["iters"], "sse": r["sse"],
-                         "time": r["time"], "t_init": r["t_init"]})
-    with open(os.path.join(RESULTS, "init_compare.csv"), "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["init", "seed", "iters", "sse", "time", "t_init"])
-        w.writeheader()
-        w.writerows(rows)
-    print("wrote init_compare.csv")
+    if args.only != "real":
+        # ---- random vs K-Means++ starting centroids (serial) ----------------------------
+        print("Initialisation: random vs K-Means++")
+        path = make_data(N(200000), 8, 16, 3, "syn_init%s" % tag, std=8.0)
+        rows = []
+        for seed in range(1, 11):
+            for init in ("random", "plus"):
+                r = run_program("serial", path, 16, extra=["-m", "300", "-t", "1e-4",
+                                                           "-s", str(seed), "-i", init])
+                rows.append({"init": init, "seed": seed, "iters": r["iters"], "sse": r["sse"],
+                             "time": r["time"], "t_init": r["t_init"]})
+        with open(os.path.join(RESULTS, "init_compare.csv"), "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["init", "seed", "iters", "sse", "time", "t_init"])
+            w.writeheader()
+            w.writerows(rows)
+        print("wrote init_compare.csv")
 
     print("\nAll benchmarks done in %.1f minutes." % ((time.time() - t_start) / 60))
 

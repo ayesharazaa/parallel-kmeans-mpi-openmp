@@ -6,8 +6,8 @@
  *
  * Everything here is "static inline" so each program just #includes this file.
  */
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef COMMON_H //checks if common_h has not been defined yet 
+#define COMMON_H //if it hasnt been defined, define it now
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,16 +15,16 @@
 #include <stdint.h>
 #include <float.h>
 #ifdef _WIN32
-#include <windows.h>
+#include <windows.h> // compiled on windows 
 #else
 #include <time.h>
 #endif
 #ifdef _OPENMP
-#include <omp.h>
+#include <omp.h> // compiled with openmp support
 #endif
 
 /* ------------------------------------------------------------------ */
-/* Small utilities                                                     */
+/* Helper Functions                                                     */
 /* ------------------------------------------------------------------ */
 
 /* Print an error message and stop. */
@@ -44,13 +44,13 @@ static inline double wtime(void) {
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (double)ts.tv_sec + 1e-9 * (double)ts.tv_nsec;
+    return (double)ts.tv_sec + 1e-9 * (double)ts.tv_nsec; // convert nanoseconds to seconds 
 #endif
 }
 
 /* 64-bit file seek, so files bigger than 2 GB work on Windows too. */
 #ifdef _WIN32
-#define SEEK64(f, off) _fseeki64((f), (__int64)(off), SEEK_SET)
+#define SEEK64(f, off) _fseeki64((f), (__int64)(off), SEEK_SET) // move to a particular position in the file 
 #else
 #define SEEK64(f, off) fseeko((f), (off_t)(off), SEEK_SET)
 #endif
@@ -64,13 +64,13 @@ static inline uint64_t rng_seed(uint64_t seed) {
 }
 static inline uint64_t rng_next(uint64_t *s) {
     uint64_t x = *s;
-    x ^= x >> 12;
-    x ^= x << 25;
-    x ^= x >> 27;
-    *s = x;
-    return x * 0x2545F4914F6CDD1DULL;
+    x ^= x >> 12; // shift right by 12 bits and XOR with original value
+    x ^= x << 25; // shift left by 25 bits and XOR with original value
+    x ^= x >> 27; // shift right by 27 bits and XOR with original value
+    *s = x; // update the state with the new value
+    return x * 0x2545F4914F6CDD1DULL; // multiply by a constant to produce the next random number
 }
-/* Uniform double in [0,1). */
+/* Uniform double in [0,1). */ // converts into a uniform double in the range [0,1)
 static inline double rng_uniform(uint64_t *s) {
     return (double)(rng_next(s) >> 11) * (1.0 / 9007199254740992.0);
 }
@@ -104,7 +104,7 @@ static inline double *read_rows(const char *path, long start, long count, int d)
     if (items > 0 && fread(buf, sizeof(double), items, f) != items) die("file too short");
     fclose(f);
     return buf;
-}
+} // every process is assigned a portion to read 
 
 /* ------------------------------------------------------------------ */
 /* Command-line options (same for every program)                       */
@@ -131,7 +131,7 @@ static inline void usage(const char *prog) {
         "  -t -1 (or 0) means: never stop early, always run max_iter iterations\n",
         prog);
     exit(1);
-}
+} // displays the correct way to execute the program and the available options
 
 static inline Options parse_args(int argc, char **argv) {
     Options o;
@@ -158,7 +158,7 @@ static inline Options parse_args(int argc, char **argv) {
         else usage(argv[0]);
     }
     return o;
-}
+} // read the command line arguments and store them in the Options struct
 
 #ifdef _OPENMP
 /* Apply -T and -S/-C.  The loops use schedule(runtime), so this choice
@@ -170,7 +170,7 @@ static inline void setup_openmp(const Options *o) {
     else if (!strcmp(o->sched, "guided")) kind = omp_sched_guided;
     omp_set_schedule(kind, o->chunk);
 }
-#endif
+#endif // how openMP distributes work among threads based on the command line arguments
 
 /* ------------------------------------------------------------------ */
 /* Starting centroids                                                  */
@@ -189,13 +189,13 @@ static inline void init_random(const char *path, int n, int d, int k,
             idx[i] = (long)(rng_next(&s) % (uint64_t)n);
             dup = 0;
             for (int j = 0; j < i; j++) if (idx[j] == idx[i]) dup = 1;
-        } while (dup);
+        } while (dup); // no duplicate points are allowed, so keep generating until a unique point is found
         double *row = read_rows(path, idx[i], 1, d);
         memcpy(cent + (size_t)i * d, row, sizeof(double) * (size_t)d);
         free(row);
     }
     free(idx);
-}
+} // select random distinct points from the dataset to serve as initial centroids for the K-Means algorithm
 
 /* Squared Euclidean distance between two d-dimensional vectors. */
 static inline double sqdist(const double *a, const double *b, int d) {
@@ -211,24 +211,25 @@ static inline void init_plus(const double *pts, int n, int d, int k,
                              uint64_t seed, double *cent) {
     uint64_t s = rng_seed(seed);
     double *dist2 = (double *)malloc(sizeof(double) * (size_t)n);
-    long first = (long)(rng_next(&s) % (uint64_t)n);
+    long first = (long)(rng_next(&s) % (uint64_t)n); // pick a random point as the first centroid
     memcpy(cent, pts + (size_t)first * d, sizeof(double) * (size_t)d);
-    for (int i = 0; i < n; i++) dist2[i] = DBL_MAX;
+    for (int i = 0; i < n; i++) dist2[i] = DBL_MAX; //initialize the squared distances to the maximum possible value
     for (int c = 1; c < k; c++) {
         double total = 0.0;
         for (int i = 0; i < n; i++) {
             double dd = sqdist(pts + (size_t)i * d, cent + (size_t)(c - 1) * d, d);
+            // calculate the squared distance from the current point to the nearest centroid so far
             if (dd < dist2[i]) dist2[i] = dd;
             total += dist2[i];
         }
-        double r = rng_uniform(&s) * total, acc = 0.0;
+        double r = rng_uniform(&s) * total, acc = 0.0; // pick a new centroid with probability proportional to its squared distance
         int pick = n - 1;
         for (int i = 0; i < n; i++) {
             acc += dist2[i];
             if (acc >= r) { pick = i; break; }
-        }
+        } // weighted random selection of the next centroid based on the accumulated squared distances
         memcpy(cent + (size_t)c * d, pts + (size_t)pick * d, sizeof(double) * (size_t)d);
-    }
+    } // continues until k centroids have been selected 
     free(dist2);
 }
 
@@ -246,7 +247,7 @@ static inline int nearest(const double *p, const double *cent, int k, int d, dou
     }
     *bd = bestd;
     return best;
-}
+} // find which centroid 
 
 /* ASSIGNMENT STEP, serial.
  * For each of the n points: find the nearest centroid, add the point to that

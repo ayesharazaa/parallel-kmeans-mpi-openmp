@@ -1,0 +1,29 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "Windows (MSYS2 UCRT64 gcc, OpenMP, MS-MPI)",
+            "compilerPath": "C:/msys64/ucrt64/bin/gcc.exe",
+            "compilerArgs": ["-fopenmp"],
+            "includePath": [
+                "${workspaceFolder}/src",
+                "C:/msys64/ucrt64/include"
+            ],
+            "defines": [],
+            "cStandard": "gnu11",
+            "intelliSenseMode": "windows-gcc-x64"
+        },
+        {
+            "name": "Linux / WSL (gcc, OpenMP, Open MPI)",
+            "compilerPath": "/usr/bin/gcc",
+            "compilerArgs": ["-fopenmp"],
+            "includePath": [
+                "${workspaceFolder}/src",
+                "/usr/lib/x86_64-linux-gnu/openmpi/include"
+            ],
+            "defines": [],
+            "cStandard": "gnu11",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ]
+}

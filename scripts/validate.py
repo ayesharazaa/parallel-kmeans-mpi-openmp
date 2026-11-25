@@ -9,7 +9,9 @@ points whose cluster's majority class equals their own class.
 
 Exit status is 1 if anything fails.
 """
+import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -56,7 +58,13 @@ def main():
         ("letter", os.path.join(DATA, "letter.bin"), 26, ["-m", "100", "-t", "1e-4"]),
         ("synthetic 50k fixed 20 iters", synth, 8, ["-m", "20", "-t", "-1"]),
     ]
+    # the large real data sets, if they were downloaded (fixed 10 iterations to keep it quick)
+    for nm, kk in (("covertype", 7), ("yearpredictionmsd", 8), ("census1990", 8)):
+        fp = os.path.join(DATA, nm + ".bin")
+        if os.path.exists(fp):
+            datasets.append((nm, fp, kk, ["-m", "10", "-t", "-1"]))
     failures = 0
+    summary = []
     for name, path, k, opts in datasets:
         ref_file = os.path.join(RESULTS, "ref_serial.txt")
         lab_file = os.path.join(RESULTS, "ref_labels.bin")
@@ -64,15 +72,26 @@ def main():
         line = "%s (n=%d, d=%d, k=%d): serial %d iters, SSE %.6g" % (
             name, ref["n"], ref["d"], k, ref["iters"], ref["sse"])
         truth = os.path.join(DATA, name + ".labels")
+        pur = None
         if os.path.exists(truth):
-            line += ", purity %.3f" % purity(lab_file, truth, k)
+            pur = purity(lab_file, truth, k)
+            line += ", purity %.3f" % pur
         print(line)
+        entry = {"name": name, "n": ref["n"], "d": ref["d"], "k": k, "iters": ref["iters"],
+                 "sse": ref["sse"], "purity": pur, "cases": len(CASES), "passed": 0, "max_cent_diff": 0.0}
+        summary.append(entry)
         for label, version, procs, threads, extra in CASES:
             out = os.path.join(RESULTS, "tmp_out.txt")
             run_program(version, path, k, procs, threads, opts + extra + ["-o", out])
             ok, msg = compare(ref_file, out)
             failures += (not ok)
+            entry["passed"] += int(ok)
+            m = re.search(r"centroid diff ([0-9.eE+-]+)", msg)
+            if m:
+                entry["max_cent_diff"] = max(entry["max_cent_diff"], float(m.group(1)))
             print("   %-22s %s  %s" % (label, "PASS" if ok else "FAIL", msg))
+    with open(os.path.join(RESULTS, "validation_summary.json"), "w") as jf:
+        json.dump(summary, jf, indent=1)
     for f in ("tmp_out.txt", "ref_serial.txt", "ref_labels.bin"):
         os.remove(os.path.join(RESULTS, f))
     print("\nALL PASSED" if failures == 0 else "\n%d FAILURES" % failures)
