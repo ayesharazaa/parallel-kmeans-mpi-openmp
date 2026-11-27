@@ -28,15 +28,20 @@ src/kmeans_mpi.c            MPI version
 src/kmeans_hybrid.c         MPI + OpenMP version
 scripts/runlib.py           helpers: find programs, run them, parse their output
 scripts/compare.py          checks that a parallel result equals the serial result
-scripts/prep_uci.py         converts the UCI text files to the binary format
-scripts/validate.py         correctness tests (synthetic + 3 real UCI datasets)
+scripts/prep_uci.py         converts the small UCI text files (Iris, Wine, Letter) to the binary format
+scripts/prep_real.py        converts the large UCI downloads (Covertype, US Census 1990) to the binary format
+scripts/validate.py         correctness tests (synthetic + small and large real UCI datasets)
+scripts/demo.py             quick comparison table of all versions (for a first look or a screenshot)
 scripts/run_benchmarks.py   runs every experiment -> results/*.csv
 scripts/make_plots.py       draws plots/*.png and writes results/tables.md
+scripts/build_report.js     builds the Word report from the results (needs npm package docx)
+scripts/make_code_images.py, make_diagrams.py   helper scripts for report pictures
 scripts/run_all.sh          build + test + benchmark + plots in one command
-data/                       datasets (UCI text files, generated .bin files)
-results/                    CSV tables, tables.md, benchmark_log.txt
-plots/                      graphs (PNG)
-report/results_draft.md     draft of the results and analysis section
+data/                       datasets (UCI text files, generated .bin files); data/raw/ holds the large downloads
+results/                    Windows results: CSV tables, tables.md, validation_summary.json, real.csv
+plots/, plots_bw/           graphs (PNG) in colour and in black and white (Windows)
+linux/                      Linux (Open MPI) results, linux/plots/ (colour) and plots_bw_linux/ (black and white)
+report/                     the final report (Parallel_KMeans_Report.docx and .pdf) and results_draft.md
 ```
 
 ## The four versions in one paragraph each
@@ -82,7 +87,7 @@ Then in Git Bash or an MSYS2 shell, from the project folder: `source env.sh`.
 ```bash
 source env.sh            # Windows only
 make all                 # build into bin/    (on Windows: mingw32-make all)
-make test                # correctness: every version vs serial, 4 datasets
+make test                # correctness: every version vs serial, all datasets
 make bench               # all experiments -> results/*.csv   (about 10 minutes)
 make plots               # plots/*.png and results/tables.md
 ```
@@ -104,13 +109,27 @@ Options: `-m` max iterations, `-t` stop tolerance (`-1` = never stop early), `-s
 
 ## Datasets
 
-* Synthetic Gaussian blobs from `gen_data` (any n, d, k).
-* UCI Machine Learning Repository, used for validation: **Iris** (150 x 4), **Wine** (178 x 13, standardised),
-  **Letter Recognition** (20000 x 16).
+* Synthetic Gaussian blobs from `gen_data` (any n, d, k): used for the scaling experiments.
+* UCI Machine Learning Repository, small sets used only for correctness: **Iris** (150 x 4), **Wine** (178 x 13,
+  standardised), **Letter Recognition** (20000 x 16).
+* UCI Machine Learning Repository, large real sets used for the real-data benchmark:
+  **Covertype** (581,012 x 10 numeric columns, k = 7) and **US Census 1990** (first 1,000,000 rows x 68 attributes, k = 8).
+
+The two large datasets are not in git (too big). Download them from https://archive.ics.uci.edu (Covertype and
+"US Census Data (1990)") and save the zip files, without unzipping, as `data/raw/covertype/covertype.zip` and
+`data/raw/census1990/census1990.zip`. Then convert them (columns are standardised; the Census default is its first
+1,000,000 rows, use `--rows N` for another size):
+
+```bash
+python scripts/prep_real.py                   # converts every complete zip it finds
+python scripts/run_benchmarks.py --only real  # benchmark only the real datasets (about 2 minutes)
+```
+
+`Datasets.zip` (made for the submission) contains the original UCI files and a README that explains them.
 
 ## Correctness check
 
-`scripts/validate.py` runs each parallel version (several thread/process counts and schedules, including process
+`scripts/validate.py` (`make test`) runs each parallel version (several thread/process counts and schedules, including process
 counts that do not divide n) and compares with the serial result: same iteration count, identical cluster sizes,
 SSE and centroids equal up to floating-point rounding (relative difference about 1e-15; sums are added in a
 different order in the parallel versions).
@@ -126,11 +145,30 @@ make all && make test && make bench && make plots
 
 `scripts/runlib.py` adds `--oversubscribe --bind-to none` to `mpiexec` automatically when Open MPI is detected.
 The Linux results of this project are kept separately in `linux/results/` and `linux/plots/`
-(the Windows results are in `results/` and `plots/`).
+(the Windows results are in `results/` and `plots/`). Both include the real datasets.
+
+## Quick look without the long benchmark
+
+```bash
+python scripts/demo.py     # about 1 minute: all versions on 1,000,000 points, same SSE, different times
+```
+
+## Report
+
+`report/Parallel_KMeans_Report.docx` (and `.pdf`) is built from the CSV results with
+`node scripts/build_report.js report/Parallel_KMeans_Report.docx` (install the npm package once: `npm install docx`).
+The screenshot and plot placeholders in it are replaced by hand: the report names the file for each one.
+
+## Troubleshooting
+
+* `make all` or the programs are not found on Windows: run `source env.sh` in the MSYS2 UCRT64 or Git Bash shell first.
+* An OpenMP program stops at once with exit code 3221225781: Windows cannot find `libgomp-1.dll`
+  (the shell did not load `env.sh`). `scripts/runlib.py` now adds the MSYS2 folder to the PATH by itself.
+* `prep_real.py` says "not a complete zip file": the download was cut off; download that file again.
 
 ## Machine used
 
 Intel Core i7-6600U, 2 physical cores / 4 hardware threads (hyper-threading), 7.9 GB RAM, Windows 10,
 GCC 16.2 (`-O2`), Microsoft MPI. With only 2 physical cores, speedup is limited to roughly 2 to 2.5x; see the
-analysis in `report/results_draft.md`. Timings on a laptop vary by up to about 10 to 15% between runs
+analysis in the report (`report/`). Timings on a laptop vary by up to about 10 to 15% between runs
 (heat, background programs), which is why each point is the median of 5 runs.

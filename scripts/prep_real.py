@@ -14,7 +14,7 @@ Input : data/raw/<name>/<name>.zip   (downloaded from the UCI repository; see RE
 Output: data/<name>.bin  (+ data/<name>.labels for covertype, the 7 real cover types)
 
 Usage:  python scripts/prep_real.py [name ...]      (default: every zip that is present)
-        python scripts/prep_real.py census1990 --rows 1000000   (only the first N rows)
+        python scripts/prep_real.py census1990 --rows 500000    (only the first N rows; the default for census1990 is 1,000,000)
 """
 import gzip
 import io
@@ -57,6 +57,11 @@ def convert(name, max_rows=None):
     if not os.path.exists(zpath):
         print("skipping %s: %s not found" % (name, zpath))
         return
+    if not zipfile.is_zipfile(zpath):
+        print("skipping %s: %s is not a complete zip file (download it again)" % (name, zpath))
+        return
+    if name == "census1990" and max_rows is None:
+        max_rows = 1000000                            # default: first 1,000,000 rows (the full file has 2,458,285)
     print("converting", name)
     with zipfile.ZipFile(zpath) as zf:
         f = open_member(zf, key, os.path.join(RAW, name))

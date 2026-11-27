@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BIN = os.path.join(ROOT, "bin")
@@ -32,6 +33,18 @@ def _mpiexec():
     if os.path.exists(ms):
         return ms
     sys.exit("mpiexec not found - on Windows run 'source env.sh' first")
+
+
+def _env():
+    """Environment for the programs. On Windows the OpenMP runtime (libgomp-1.dll) lives in the
+    MSYS2 folder; if the shell did not 'source env.sh' (for example plain PowerShell), add it to
+    PATH here, otherwise the OpenMP programs stop at once with exit code 3221225781."""
+    env = dict(os.environ)
+    if os.name == "nt":
+        for d in (r"C:\msys64\ucrt64\bin", r"D:\msys64\ucrt64\bin", r"C:\Program Files\Microsoft MPI\Bin"):
+            if os.path.isdir(d) and d.lower() not in env.get("PATH", "").lower():
+                env["PATH"] = env.get("PATH", "") + os.pathsep + d
+    return env
 
 
 def parse_result(text):
@@ -66,9 +79,14 @@ def run_program(version, datafile, k, procs=1, threads=1, extra=None):
             # not pin each process to one core (that would trap its OpenMP threads).
             launcher += ["--oversubscribe", "--bind-to", "none"]
         cmd = launcher + ["-n", str(procs)] + cmd
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=_env())
     if proc.returncode != 0:
-        raise RuntimeError("command failed: %s\n%s%s" % (" ".join(cmd), proc.stdout, proc.stderr))
+        # Windows sometimes refuses to start a program that was compiled a moment ago
+        # (antivirus still scanning it), so wait a little and try once more.
+        time.sleep(2)
+        proc = subprocess.run(cmd, capture_output=True, text=True, env=_env())
+    if proc.returncode != 0:
+        raise RuntimeError("command failed (exit code %d): %s\n%s%s" % (proc.returncode, " ".join(cmd), proc.stdout, proc.stderr))
     return parse_result(proc.stdout)
 
 
